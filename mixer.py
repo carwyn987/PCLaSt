@@ -1,3 +1,23 @@
+"""
+ENCODER DEFINITION
+
+Based on MLP-Mixer, a 2021 CV paper by Google Research / Google Brain, that proposes replacing both convolutions and self-attention with only multilayer perceptrons (MLPs) for image classification.
+MLP-Mixer operates on image patches, similar to Vision Transformer-style models. An image is split into a grid of fixed-size patches; each patch is linearly embedded into a token. A stack of identical “Mixer” blocks follows, each containing token-mixing and channel-mixing MLPs.
+
+100x100 Image
+    ↓
+Reshape to [B, 1, 100, 100]
+    ↓
+MLP-Mixer (patch-based feature extraction)
+    ├─ ImageToPatches (10x10 patches → 100 tokens)
+    ├─ PerPatchMLP (pixel → 32-dim channel)
+    ├─ 2 layers of {TokenMixing + ChannelMixing}
+    └─ OutputMLP (mean pool → 512-dim)
+
+Modifications to original paper:
+ - Positional encoding is removed (commented out)
+ - Adapted to latent-state modeling - output projection to latent z_t \in R^256
+"""
 
 import torch
 import torch.nn as nn
@@ -55,7 +75,7 @@ class ChannelMixingMLP(nn.Module):
     def forward(self, U):
         z = self.layer_norm(U)                  # z: [B, n_tokens, n_channel]
         z = self.gelu(self.mlp3(z))             # z: [B, n_tokens, n_hidden]
-        z = self.mlp4(z)                        # z: [B, n_tokens, n_channel]
+        z = self.mlp4(z)                        # z: [B, n_hidden, n_channel]
         Y = U + z                               # Y: [B, n_tokens, n_channel]
         return Y
 
@@ -116,6 +136,3 @@ if __name__ == "__main__":
         y = mix(x)
         y.mean()
     print((time.time()-t0) / 100)
-
-
-
